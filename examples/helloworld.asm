@@ -5,9 +5,11 @@
 
     .data                           # section declaration
 
-msg:
-    .ascii      "Hello, world!\n"   # string to print
+    msg         .ascii  "Hello, world!\n"   # string to print
+    array_bf    byte    8000 dup(0)
+
     .global _start                  # ELF linker requires starting point to be _start
+
 
 _start:
 	  mov   eax,SYS_WRITE       # system call number (sys_write)
