@@ -6,8 +6,8 @@
     .data                           # section declaration
 
 msg:
-    .ascii      "Hello, world!\n"   # our dear string
-    .global _start                  # ELF linker requires starting point to be _startr 
+    .ascii      "Hello, world!\n"   # string to print
+    .global _start                  # ELF linker requires starting point to be _start
 
 _start:
 	  mov   eax,SYS_WRITE       # system call number (sys_write)
