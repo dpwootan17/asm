@@ -1,0 +1,4 @@
+
+as --32 arraysearch.asm 
+ld -m elf_i386 a.out -o arr
+
