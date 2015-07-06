@@ -3,60 +3,78 @@
 
     .include "../includes/unistd.h"
 
-    .data                           # section declaration
+.data
 
 	msg: 		.ascii  "Hello World!\n"
-	msg2: 		.ascii  "bitches.....\n"
-	msglen:		.int	0 
-	errfail:	.ascii	"*** Failure ***\n"		
-	arr_bf:		.space  0x400				# arrarybuffer
-	loopmax:	.int	32
-	msgptr:		.int	0
-	seed:		.int	0
-	vara:		.int	1664525
-	varc:		.int	1013904223
-	
+	mlen = .-msg
+	bitches: 	.ascii  "bitches.....\n"
+	blen =.-bitches
+	msg_seed:	.ascii  "seed generation was successful\n"
+	slen = .-msg_seed
+	errfail:	.ascii	"*** Failure ***\n"
+	elen =.-errfail
+
+	arrbf:		.space  0x400,'#'	# array buffer
+	msgptr:		.int	0			# ptr to msg buffer
+	msglen:		.int	0 			# length of the msg buffer data
+	seed:		.int	0			# seed for the random number generator
+	cntr:		.int	0			# loop counter
+	dlen:		.int	0x400		# len for printing arrbf
+
     .global _start                  # ELF linker requires starting point to be _start
 
 _start:
 	call  	fillbuffer				# populate the buffer with data
 
-	mov		ecx, offset msg			
-	mov		msgptr, ecx
-	mov		ecx,13
-	mov		msglen, ecx
+	mov		msgptr, offset dword ptr msg
+	mov		msglen, dword ptr mlen
 	call	print
 
-	mov		ecx, offset msg2		
-	mov		msgptr, ecx
-	mov		ecx,13
-	mov		msglen, ecx
+	mov		msgptr, offset dword ptr bitches
+	mov		msglen, dword ptr blen
 	call	print
 
 	jmp		exit
 
 fillbuffer:
-	call getseed
+	mov		ecx, 0x100				# initialize loop counters
+	mov		edx, 0
+	_loopstart:
+		push	ecx					# push ecx
+		push	edx					# push edx
+		call 	setseed
+		pop		edx					# pop  edx
+
+		mov		eax, 8				# multiplier
+		mov		ecx, cntr			# multiplicand
+		mul		ecx					# result will be in EDX:EAX
+		mov		esi, eax								# put result in esi
+		mov 	edi, offset dword ptr arrbf[esi]		# point at arrbf
+
+		mov		esi, seed			# set to point at seed
+		pop		ecx					# pop ecx loop counter`
+		xchg	eax,ecx				# and save it again
+		mov		ecx, 2				# set ecx to move two dwords during the movsb
+		cld							# new string op, clear the direction flag
+#		rep		movsd				# move the data
+		xchg	eax,ecx				# restore ecx one more time
+
+		inc		dword ptr cntr		# increment cntr for next arrbf[offset] calculation
+	loopnz _loopstart
+
+	mov		msgptr, offset dword ptr bitches
+	mov		msglen, dword ptr blen
+	call	print
+
+	sub		esi, esi
+	mov		msgptr, offset dword ptr arrbf
+	mov		msglen, offset dword ptr dlen
+	call	print
+
 	ret
 
-getseed:
-	mov		eax,SYS_TIME			# get the time in seconds
-	mov		ebx,offset seed			# the address of seed
-	int		0x80					# interrupt the kernel
-
-	mov		eax,1664525				# set multipler (a)
-	mov		ecx,seed				# set multiplicand : seed
-	mul		ecx						# (a * seed) : result will reside in EDX:EAX
-
-
-	jnc		fail					# print msg and get out if there was a problem
-
-	/* do MOD function with result here */
-
-	/* create a method to print the value of seed */
-
-
-	/* SYS_TIME
+setseed:
+	/* 
 		Linear-Congruential Algorithm.
 		Once a seed value is generated, it is used as the seed for the following random number
 		x = (a * s + b) MOD m  
@@ -66,9 +84,25 @@ getseed:
 		m, a and b are picked for the algorithm - for the purposes of this test, m will be 2^32
 
 		from Wikipedia
-		Source				m	(multiplier) a   	(increment) c	output bits of seed in rand() / Random(L)  b
-		Numerical Recipes	2	1664525				1013904223												   (not-used)
+		Source				m		(multiplier) a   	(increment) c	output bits of seed in rand() / Random(L)  b
+		Numerical Recipes	2^32	1664525				1013904223												   (not-used)
 	*/
+
+	mov		eax,SYS_TIME				# get the time in seconds
+	mov		ebx,offset dword ptr seed	# the address of seed
+	int		0x80						# interrupt the kernel
+
+	mov		eax,1664525					# set multipler (a)
+	mov		ecx,seed					# set multiplicand : seed
+	mul		ecx							# (a * seed) : result will reside in EDX:EAX
+
+	mov		ecx,0xffffffff				# use 'div ecx' to divide the 64-bit operand in EDX:EAX by ecx
+	div		ecx
+	mov		seed,edx					# the remainder is saved in edx						
+
+	mov		msgptr, offset dword ptr msg_seed
+	mov		msglen, dword ptr slen
+	call	print
 
 	ret
 
@@ -81,10 +115,8 @@ print:
 	ret								# return to the caller
 
 fail:
-	mov		ecx,offset errfail
-	mov		msgptr, ecx				# set address of failure message
-	mov		ecx,13
-	mov		msglen, ecx
+	mov		msgptr, offset dword ptr errfail
+	mov		msglen, dword ptr elen
 	call	print
 
 exit:
