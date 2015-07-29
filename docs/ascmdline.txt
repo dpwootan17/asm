@@ -1,5 +1,5 @@
 
-as -ahls=a.lst --32 -g --statistics -V arraysearch.asm
+as -ahls=a.lst --32 -g -V arraysearch.asm
 
 ld -m elf_i386 a.out -o arr
 
